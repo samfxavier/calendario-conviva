@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendário Conviva</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background-color: #f9f5e7; /* Cor bege clara */
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #556b2f;
+            display: flex;
+            align-items: center;
+        }
+        h1 img {
+            width: 40px;
+            margin-right: 10px;
+        }
+        .instructions {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: #4b5320;
+        }
+        .calendar-container {
+            width: 100%;
+            max-width: 800px; /* Tamanho máximo para telas grandes */
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #4b5320;
+        }
+        .month-year {
+            font-weight: bold;
+            font-size: 1.5rem; /* Aumentado para melhor visibilidade */
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px; /* Espaçamento maior para melhor visualização */
+            margin-top: 10px;
+        }
+        .day-header {
+            font-weight: bold;
+            text-align: center;
+            padding: 10px; /* Aumentado para melhor visibilidade */
+            background-color: #8f9779;
+            color: white;
+            border-radius: 5px;
+        }
+        .day {
+            position: relative;
+            padding: 15px; /* Aumentado para melhor visibilidade */
+            height: 120px; /* Aumentado para melhor visualização */
+            border-radius: 5px;
+            background-color: #e6e2d3;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: start;
+            font-size: 1.2rem; /* Aumentado para melhor visibilidade */
+            color: #4b5320;
+            transition: background-color 0.3s; /* Transição suave na cor */
+        }
+        .day:hover {
+            background-color: #c8d5b9;
+        }
+        .day.event-day {
+            background-color: #556b2f; /* Verde musgo para dias com eventos */
+            color: white;
+        }
+        .day-number {
+            font-size: 1.8rem; /* Aumentado para melhor visibilidade */
+            font-weight: bold;
+        }
+        .events {
+            margin-top: 5px;
+            font-size: 0.9rem; /* Aumentado para melhor visibilidade */
+            list-style: none;
+            padding: 0;
+            text-align: center;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px; /* Ajustado para ser mais responsivo */
+        }
+        .close-btn, .add-event-btn {
+            background-color: #5cb85c;
+            color: white;
+            padding: 8px 12px; /* Aumentado para melhor visibilidade */
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%; /* Botões ocupam a largura total */
+        }
+        .close-btn {
+            background-color: #d9534f;
+        }
+        .delete-btn {
+            background-color: #d9534f;
+            color: white;
+            padding: 4px 8px; /* Tamanho reduzido para botão de excluir */
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 5px; /* Espaçamento entre botões */
+        }
+    </style>
+</head>
+<body>
+    <h1>
+        <img src="logo.png" alt="Logo Conviva"> <!-- Troque "logo.png" pelo caminho da sua logo -->
+        Calendário Conviva
+    </h1>
+    <p class="instructions">
+        Clique no dia desejado para adicionar eventos. Evite marcar eventos no mesmo dia sem verificar antes.
+    </p>
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <button onclick="prevMonth()">◀️</button>
+            <div class="month-year" id="monthYear"></div>
+            <button onclick="nextMonth()">▶️</button>
+        </div>
+        <div class="calendar" id="calendar"></div>
+    </div>
+
+    <!-- Modal para exibir e adicionar eventos -->
+    <div class="modal" id="event-modal">
+        <div class="modal-content">
+            <h3 id="modal-date"></h3>
+            <ul class="events" id="event-list"></ul>
+            <input type="time" id="event-time" placeholder="Horário">
+            <input type="text" id="event-input" placeholder="Adicionar novo evento">
+            <button class="add-event-btn" onclick="addEvent()">Adicionar Evento</button>
+            <button class="close-btn" onclick="closeModal()">Fechar</button>
+        </div>
+    </div>
+
+<script>
+    const calendarElement = document.getElementById("calendar");
+    const monthYearElement = document.getElementById("monthYear");
+    const modal = document.getElementById("event-modal");
+    const modalDate = document.getElementById("modal-date");
+    const eventList = document.getElementById("event-list");
+    const eventInput = document.getElementById("event-input");
+    const eventTime = document.getElementById("event-time");
+
+    const events = {}; // Objeto para armazenar eventos com data e hora
+
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+
+    function renderCalendar() {
+        calendarElement.innerHTML = '';
+        const daysInWeek = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        daysInWeek.forEach(day => {
+            const dayHeader = document.createElement("div");
+            dayHeader.className = "day-header";
+            dayHeader.textContent = day;
+            calendarElement.appendChild(dayHeader);
+        });
+
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) {
+            const emptyCell = document.createElement("div");
+            calendarElement.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayElement = document.createElement("div");
+            dayElement.className = "day";
+            dayElement.onclick = () => openModal(dateStr);
+
+            if (events[dateStr]) {
+                dayElement.classList.add("event-day");
+            }
+
+            dayElement.innerHTML = `
+                <div class="day-number">${day}</div>
+                <ul class="events">
+                    ${(events[dateStr] || []).map(event => `<li>${event.time} - ${event.description}</li>`).join("")}
+                </ul>
+            `;
+
+            calendarElement.appendChild(dayElement);
+        }
+
+        monthYearElement.textContent = new Date(currentYear, currentMonth).toLocaleString("pt-BR", {
+            month: "long",
+            year: "numeric"
+        });
+    }
+
+    function openModal(dateStr) {
+        modalDate.textContent = `Eventos em ${dateStr}`;
+        eventList.innerHTML = (events[dateStr] || []).map((event, index) => 
+            `<li>${event.time} - ${event.description} <button class="delete-btn" onclick="deleteEvent('${dateStr}', ${index})">Excluir</button></li>`).join("");
+        eventInput.value = "";
+        eventTime.value = "";
+        modal.style.display = "flex";
+        eventInput.dataset.date = dateStr;
+    }
+
+    function closeModal() {
+        modal.style.display = "none";
+    }
+
+    function addEvent() {
+        const dateStr = eventInput.dataset.date;
+        const newEventTime = eventTime.value;
+        const newEventDescription = eventInput.value;
+
+        if (!newEventTime || !newEventDescription) {
+            alert("Por favor, preencha todos os campos.");
+            return;
+        }
+
+        if (!events[dateStr]) {
+            events[dateStr] = [];
+        }
+
+        // Verifica se já existe um evento nesse horário
+        if (events[dateStr].some(event => event.time === newEventTime)) {
+            alert("Já existe um evento nesse horário.");
+            return;
+        }
+
+        events[dateStr].push({ time: newEventTime, description: newEventDescription });
+        closeModal();
+        renderCalendar();
+    }
+
+    function deleteEvent(dateStr, index) {
+        if (events[dateStr]) {
+            events[dateStr].splice(index, 1); // Remove o evento do array
+            if (events[dateStr].length === 0) {
+                delete events[dateStr]; // Remove a data se não houver mais eventos
+            }
+            renderCalendar();
+        }
+    }
+
+    function prevMonth() {
+        currentMonth--;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+        renderCalendar();
+    }
+
+    function nextMonth() {
+        currentMonth++;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+        renderCalendar();
+    }
+
+    // Inicializa o calendário
+    renderCalendar();
+</script>
+</body>
+</html>
